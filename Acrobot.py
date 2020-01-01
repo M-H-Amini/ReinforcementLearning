@@ -9,13 +9,26 @@ def featureExtraction(observation, mode=0):
         #  Turning obs into a 2d shape vector in numpy!!
         features = observation.copy()
         features = features[:, np.newaxis]
-    elif mode == 1: #  The features are polynomials up to degree 2 of the observations!!
+    elif mode == 1:
+        #  The features are polynomials up to degree 2 of the observations!!
+        #  with no x^2 term there! only cross-terms!
         length = observation.shape[0]
         features = np.zeros((int(length * (length + 1) / 2), 1))
         features[0:length, :] = observation[:, np.newaxis]
         counter = 0
         for i in range(length):
             for j in range(i + 1, length):
+                features[length + counter] = observation[i] * observation[j]
+                counter += 1
+    elif mode == 2:
+        #  The features are polynomials up to degree 2 of the observations!!
+        #  with no x^2 term there! only cross-terms!
+        length = observation.shape[0]
+        features = np.zeros((int(length * (length + 3) / 2), 1))
+        features[0:length, :] = observation[:, np.newaxis]
+        counter = 0
+        for i in range(length):
+            for j in range(i, length):
                 features[length + counter] = observation[i] * observation[j]
                 counter += 1
     #features = features[2:3, :]
@@ -54,16 +67,17 @@ def temporalDifferenceN(n, action_history, reward_history, features_history, lan
     return td
 
 actions_dict = {0: 1, 1: 0}
-landa = 0.9
-alpha = 0.001
+landa = 0.6
+alpha = 0.0001
 feature_mode = 1
-episode_no = 100
+episode_no = 1000
 eps = 0.1
 episode_lens = []
-show_details = False
+show_details = not False
 #w = np.array([[5], [-5]])
 #w = np.zeros((2, 1))
-w = np.zeros((2, 10))
+w = np.zeros((2, 10))  #  For mode=1 featureExtraction
+#w = np.zeros((2, 14))  #  For mode=2 featureExtraction
 
 
 for i_episode in range(episode_no):
@@ -72,14 +86,6 @@ for i_episode in range(episode_no):
     features_history=[]
     end_counter = 0
     observation = env.reset()
-    angle = observation[2] * 180 / np.pi
-
-
-    if abs(angle) < 5:
-        eps = 0.05
-    else:
-        eps = 0.6
-
 
     features = featureExtraction(observation, mode=feature_mode)
     features_history.append(features)
@@ -93,6 +99,11 @@ for i_episode in range(episode_no):
         observation, reward, done, info = env.step(action)
 
         if not done:
+            angle = observation[2] * 180 / np.pi
+            if abs(angle) < 5:
+                eps = 0.05
+            else:
+                eps = 0.15
             target = reward + landa * np.max(q(featureExtraction(observation, mode=feature_mode), w))
             current_estimation = np.max(q_mat)
             #temporal_difference = target - current_estimation
@@ -100,8 +111,8 @@ for i_episode in range(episode_no):
             reward_history.append(reward)
             if t>0:
                 #temporal_difference = temporalDifference(action_history, reward_history, features_history, landa, w)
-                if t>3:
-                    temporal_difference = temporalDifferenceN(3, action_history, reward_history, features_history, landa, w)
+                if t>8:
+                    temporal_difference = temporalDifferenceN(8, action_history, reward_history, features_history, landa, w)
                 else:
                     temporal_difference = temporalDifferenceN(1, action_history, reward_history, features_history, landa, w)
             else:
