@@ -44,11 +44,20 @@ def temporalDifference(action_history, reward_history, features_history, landa, 
     td = target - current_estimation
     return td
 
+def temporalDifferenceN(n, action_history, reward_history, features_history, landa, w):
+    target = 0
+    for i in range(n):
+        target += reward_history[-i-2] * (landa ** (n - i - 1))
+    target += (landa**n) * np.max(q(features_history[-n - 1], w))
+    current_estimation = np.max(q(features_history[-n -1], w))
+    td = target - current_estimation
+    return td
+
 actions_dict = {0: 1, 1: 0}
 landa = 0.9
 alpha = 0.001
 feature_mode = 1
-episode_no = 30
+episode_no = 100
 eps = 0.1
 episode_lens = []
 show_details = False
@@ -67,9 +76,9 @@ for i_episode in range(episode_no):
 
 
     if abs(angle) < 5:
-        eps = 0.1
+        eps = 0.05
     else:
-        eps = 0.5
+        eps = 0.6
 
 
     features = featureExtraction(observation, mode=feature_mode)
@@ -89,8 +98,12 @@ for i_episode in range(episode_no):
             #temporal_difference = target - current_estimation
             action_history.append(action_index)
             reward_history.append(reward)
-            if t>1:
-                temporal_difference = temporalDifference(action_history, reward_history, features_history, landa, w)
+            if t>0:
+                #temporal_difference = temporalDifference(action_history, reward_history, features_history, landa, w)
+                if t>3:
+                    temporal_difference = temporalDifferenceN(3, action_history, reward_history, features_history, landa, w)
+                else:
+                    temporal_difference = temporalDifferenceN(1, action_history, reward_history, features_history, landa, w)
             else:
                 temporal_difference = 0
             features_history.append(features)
