@@ -19,9 +19,10 @@ def q(features, w):
 def actionsSelection(q_mat, actions_dict, eps=0.1):
     r = np.random.rand()
     if r>eps:
-        return actions_dict[np.argmax(q_mat)]
+        return actions_dict[np.argmax(q_mat)], np.argmax(q_mat)
     else:
-        return np.random.randint(0, 2)
+        a = np.random.randint(0, 2)
+        return actions_dict[a], a
 
 def updateWeights(w, action, td, features, alpha = 0.2):
     w[action:action+1, :] = w[action:action+1, :] + alpha * td * np.transpose(features)
@@ -38,20 +39,24 @@ w = np.zeros((2, 4))
 
 
 for i_episode in range(episode_no):
+    reward_history = []
+    action_history = []
     end_counter = 0
     observation = env.reset()
     features = featureExtraction(observation)
-    for t in range(100):
+    for t in range(500):
         env.render()
         #action = env.action_space.sample()
         q_mat = q(features, w)
-        action = actionsSelection(q_mat, actions_dict)
+        action, action_index = actionsSelection(q_mat, actions_dict)
         observation, reward, done, info = env.step(action)
+        action_history.append(action)
+
         if not done:
             target = reward + landa * np.max(q(featureExtraction(observation), w))
             current_estimation = np.max(q_mat)
             temporal_difference = target - current_estimation
-            w = updateWeights(w, action, temporal_difference, features, alpha)
+            w = updateWeights(w, action_index, temporal_difference, features, alpha)
 
             features = featureExtraction(observation)
 
@@ -70,8 +75,10 @@ for i_episode in range(episode_no):
                 print("Episode finished after {} timesteps".format(t+1))
                 break
 
+    episode_lens.append(t)
+
 plt.figure()
-plt.xticks([i for i in range(len(episode_lens))])
+plt.xticks([])
 plt.plot([i for i in range(len(episode_lens))], episode_lens, 'ro--')
 plt.show()
 env.close()
