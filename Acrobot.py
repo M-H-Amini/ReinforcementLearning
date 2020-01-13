@@ -88,13 +88,13 @@ def lambdaReturn():
 
 actions_dict = {0: 1, 1: 0}
 gamma = 0.8
-alpha = 0.1
+alpha = 0.03
 feature_mode = -1
-episode_no = 1000
+episode_no = 50
 eps = 0.15
-tdN = 5
+tdN = 10
 episode_lens = []
-show_details = not False
+show_details = False
 #w = np.array([[5], [-5]])
 #w = np.zeros((2, 1))
 w = np.zeros((2, 5))  #  For mode=-1 featureExtraction
@@ -138,11 +138,12 @@ for i_episode in range(episode_no):
             #temporal_difference = target - current_estimation
             action_history.append(action_index)
             reward_history.append(reward)
-            if t > 0:
-                temporal_difference = temporalDifference(action_history, reward_history, features_history, gamma, w)
+            if t > tdN - 1:
+                #temporal_difference = temporalDifference(action_history, reward_history, features_history, gamma, w)
+                temporal_difference = temporalDifferenceN(tdN, action_history, reward_history, features_history, gamma, w)
                 #print('in While', '-'*50)
                 #print(features_history)
-                w = updateWeights(w, action_history[-2], temporal_difference, features_history[-2], alpha=alpha)
+                w = updateWeights(w, action_history[-tdN -1], temporal_difference, features_history[-tdN -1], alpha=alpha)
 
             features_history.append(features)
             features = featureExtraction(observation, mode=feature_mode)
