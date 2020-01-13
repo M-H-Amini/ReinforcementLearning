@@ -9,6 +9,15 @@ def featureExtraction(observation, mode=0):
         #  Turning obs into a 2d shape vector in numpy!!
         features = observation.copy()
         features = features[:, np.newaxis]
+    elif mode == -1:
+        #  The features will be just observations with a bias!!!
+        length = observation.shape[0]
+        features = np.zeros((length + 1, 1))
+        features[0:length, :] = observation[:, np.newaxis]
+        features[length, :] = 1
+        # print('feature extraction', '^' * 50)
+        # print('obs: {}'.format(observation))
+        # print('feature: {}'.format(np.transpose(features)))
     elif mode == 1:
         #  The features are polynomials up to degree 2 of the observations!!
         #  with no x^2 term there! only cross-terms!
@@ -47,36 +56,51 @@ def actionsSelection(q_mat, actions_dict, eps=0.1):
         print('random!', a)
         return actions_dict[a], a
 
-def updateWeights(w, action, td, features, alpha = 0.2):
+def updateWeights(w, action, td, features, alpha = 1):
+    #print('&'*50, 'updateWeights Func')
+    #print('features: ')
+    #print(np.transpose(features))
+    #print('&'*50)
     w[action:action+1, :] = w[action:action+1, :] + alpha * td * np.transpose(features)
     return w
 
-def temporalDifference(action_history, reward_history, features_history, landa, w):
-    target = reward_history[-2] + landa * np.max(q(features_history[-1], w))
+def temporalDifference(action_history, reward_history, features_history, gamma, w):
+    #print('x'*50, 'TD Func')
+    target = reward_history[-2] + gamma * np.max(q(features_history[-1], w))
     current_estimation = np.max(q(features_history[-2], w))
+    #print('target: {} \t current_est: {}'.format(target, current_estimation))
     td = target - current_estimation
+    #print('td: {}'.format(td))
     return td
 
-def temporalDifferenceN(n, action_history, reward_history, features_history, landa, w):
+def temporalDifferenceN(n, action_history, reward_history, features_history, gamma, w):
     target = 0
     for i in range(n):
-        target += reward_history[-i-2] * (landa ** (n - i - 1))
-    target += (landa**n) * np.max(q(features_history[-n - 1], w))
+        target += reward_history[-i-2] * (gamma ** (n - i - 1))
+    target += (gamma**n) * np.max(q(features_history[-1], w))
     current_estimation = np.max(q(features_history[-n -1], w))
     td = target - current_estimation
     return td
 
+#  To be done later...
+def lambdaReturn():
+    pass
+
 actions_dict = {0: 1, 1: 0}
-landa = 0.6
-alpha = 0.0001
-feature_mode = 1
+gamma = 0.8
+alpha = 0.1
+feature_mode = -1
 episode_no = 1000
-eps = 0.1
+eps = 0.15
+tdN = 5
 episode_lens = []
 show_details = not False
 #w = np.array([[5], [-5]])
 #w = np.zeros((2, 1))
-w = np.zeros((2, 10))  #  For mode=1 featureExtraction
+w = np.zeros((2, 5))  #  For mode=-1 featureExtraction
+w = np.array([[0, 0, 0.1, 0, 5], [0, 0, -0.1, 0, 5]])
+#w = np.zeros((2, 4))  #  For mode=0 featureExtraction
+#w = np.zeros((2, 10))  #  For mode=1 featureExtraction
 #w = np.zeros((2, 14))  #  For mode=2 featureExtraction
 
 
@@ -85,13 +109,18 @@ for i_episode in range(episode_no):
     action_history = []
     features_history=[]
     end_counter = 0
-    observation = env.reset()
 
+    observation = env.reset()
     features = featureExtraction(observation, mode=feature_mode)
     features_history.append(features)
+    print('first_of_episode features: ', features_history)
+    if i_episode>5:
+        eps = 0.1
+
     if show_details:
         print('-'*20,'Episode {}'.format(i_episode), '-'*20)
     for t in range(500):
+        #alpha *= np.exp(-t/500)
         env.render()
         #action = env.action_space.sample()
         q_mat = q(features, w)
@@ -101,24 +130,21 @@ for i_episode in range(episode_no):
         if not done:
             angle = observation[2] * 180 / np.pi
             if abs(angle) < 5:
-                eps = 0.05
+                eps = eps
             else:
-                eps = 0.15
-            target = reward + landa * np.max(q(featureExtraction(observation, mode=feature_mode), w))
-            current_estimation = np.max(q_mat)
+                eps = eps
+            #target = reward + gamma * np.max(q(featureExtraction(observation, mode=feature_mode), w))
+            #current_estimation = np.max(q_mat)
             #temporal_difference = target - current_estimation
             action_history.append(action_index)
             reward_history.append(reward)
-            if t>0:
-                #temporal_difference = temporalDifference(action_history, reward_history, features_history, landa, w)
-                if t>8:
-                    temporal_difference = temporalDifferenceN(8, action_history, reward_history, features_history, landa, w)
-                else:
-                    temporal_difference = temporalDifferenceN(1, action_history, reward_history, features_history, landa, w)
-            else:
-                temporal_difference = 0
+            if t > 0:
+                temporal_difference = temporalDifference(action_history, reward_history, features_history, gamma, w)
+                #print('in While', '-'*50)
+                #print(features_history)
+                w = updateWeights(w, action_history[-2], temporal_difference, features_history[-2], alpha=alpha)
+
             features_history.append(features)
-            w = updateWeights(w, action_index, temporal_difference, features, alpha)
             features = featureExtraction(observation, mode=feature_mode)
 
             if show_details:
@@ -135,7 +161,7 @@ for i_episode in range(episode_no):
             end_counter += 1
             if end_counter > 50:
                 episode_lens.append(t)
-                print("Episode finished after {} timesteps".format(t+1))
+                print("Episode {} finished after {} timesteps".format(i_episode, t+1))
                 break
 
     episode_lens.append(t)
