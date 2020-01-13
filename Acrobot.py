@@ -5,7 +5,7 @@ from matplotlib import pyplot as plt
 env = gym.make('CartPole-v0')
 
 def featureExtraction(observation, mode=0):
-    if not mode:  #  The features will be just observations!!!
+    if mode==1:  #  The features will be just observations!!!
         #  Turning obs into a 2d shape vector in numpy!!
         features = observation.copy()
         features = features[:, np.newaxis]
@@ -15,10 +15,20 @@ def featureExtraction(observation, mode=0):
         features = np.zeros((length + 1, 1))
         features[0:length, :] = observation[:, np.newaxis]
         features[length, :] = 1
-        # print('feature extraction', '^' * 50)
-        # print('obs: {}'.format(observation))
-        # print('feature: {}'.format(np.transpose(features)))
-    elif mode == 1:
+    elif mode == -2:
+        #  The features are polynomials up to degree 2 of the observations!!
+        #  with no x^2 term there! only cross-terms!
+        length = observation.shape[0]
+        features = np.zeros((int(length * (length + 1) / 2) + 1, 1))
+        features[0:length, :] = observation[:, np.newaxis]
+        counter = 0
+        for i in range(length):
+            for j in range(i + 1, length):
+                features[length + counter] = observation[i] * observation[j]
+                counter += 1
+        features[-1:, :] = 1
+
+    elif mode == 2:
         #  The features are polynomials up to degree 2 of the observations!!
         #  with no x^2 term there! only cross-terms!
         length = observation.shape[0]
@@ -29,9 +39,21 @@ def featureExtraction(observation, mode=0):
             for j in range(i + 1, length):
                 features[length + counter] = observation[i] * observation[j]
                 counter += 1
-    elif mode == 2:
+    elif mode == -3:
         #  The features are polynomials up to degree 2 of the observations!!
-        #  with no x^2 term there! only cross-terms!
+        #  with x^2 term there! There will be a bias term too!
+        length = observation.shape[0]
+        features = np.zeros((int(length * (length + 3) / 2) + 1, 1))
+        features[0:length, :] = observation[:, np.newaxis]
+        counter = 0
+        for i in range(length):
+            for j in range(i, length):
+                features[length + counter] = observation[i] * observation[j]
+                counter += 1
+        features[-1:, :] = 1
+    elif mode == 3:
+        #  The features are polynomials up to degree 2 of the observations!!
+        #  with x^2 terms there!
         length = observation.shape[0]
         features = np.zeros((int(length * (length + 3) / 2), 1))
         features[0:length, :] = observation[:, np.newaxis]
@@ -89,19 +111,26 @@ def lambdaReturn():
 actions_dict = {0: 1, 1: 0}
 gamma = 0.8
 alpha = 0.03
-feature_mode = -1
+feature_mode = -2
 episode_no = 50
 eps = 0.15
-tdN = 10
+tdN = 5
 episode_lens = []
-show_details = False
+show_details = not False
 #w = np.array([[5], [-5]])
 #w = np.zeros((2, 1))
-w = np.zeros((2, 5))  #  For mode=-1 featureExtraction
-w = np.array([[0, 0, 0.1, 0, 5], [0, 0, -0.1, 0, 5]])
+#w = np.array([[0, 0, 0.1, 0, 5], [0, 0, -0.1, 0, 5]]) #  For mode=-1 featureExtraction
+#w = np.zeros((2, 14))  #  For mode=2 featureExtraction
 #w = np.zeros((2, 4))  #  For mode=0 featureExtraction
 #w = np.zeros((2, 10))  #  For mode=1 featureExtraction
 #w = np.zeros((2, 14))  #  For mode=2 featureExtraction
+w = np.zeros((2, 11))  #  For mode=-2 featureExtraction
+#w = np.zeros((2, 15))  #  For mode=-3 featureExtraction
+w[0, 2] = 0.1
+w[1, 2] = -0.1
+w[0, -1] = 5
+w[1, -1] = 5
+
 
 
 for i_episode in range(episode_no):
