@@ -108,95 +108,100 @@ def temporalDifferenceN(n, action_history, reward_history, features_history, gam
 def lambdaReturn():
     pass
 
-actions_dict = {0: 1, 1: 0}
-gamma = 0.8
-alpha = 0.03
-feature_mode = -2
-episode_no = 25
-eps = 0.15
-tdN = 4
-episode_lens = []
-show_details = not False
-#w = np.array([[5], [-5]])
-#w = np.zeros((2, 1))
-#w = np.array([[0, 0, 0.1, 0, 5], [0, 0, -0.1, 0, 5]]) #  For mode=-1 featureExtraction
-#w = np.zeros((2, 14))  #  For mode=2 featureExtraction
-#w = np.zeros((2, 4))  #  For mode=0 featureExtraction
-#w = np.zeros((2, 10))  #  For mode=1 featureExtraction
-#w = np.zeros((2, 14))  #  For mode=2 featureExtraction
-w = np.zeros((2, 11))  #  For mode=-2 featureExtraction
-#w = np.zeros((2, 15))  #  For mode=-3 featureExtraction
-w[0, 2] = 0.1
-w[1, 2] = -0.1
-w[0, -1] = 5
-w[1, -1] = 5
+def runCart(times, no_of_episodes=50, output_file='Cartpole'):
+    data = []
+    actions_dict = {0: 1, 1: 0}
+    gamma = 0.8
+    alpha = 0.03
+    feature_mode = -2
+    episode_no = 25
+    eps = 0.15
+    tdN = 4
+    show_details = False
+    #w = np.array([[5], [-5]])
+    #w = np.zeros((2, 1))
+    #w = np.array([[0, 0, 0.1, 0, 5], [0, 0, -0.1, 0, 5]]) #  For mode=-1 featureExtraction
+    #w = np.zeros((2, 14))  #  For mode=2 featureExtraction
+    #w = np.zeros((2, 4))  #  For mode=0 featureExtraction
+    #w = np.zeros((2, 10))  #  For mode=1 featureExtraction
+    #w = np.zeros((2, 14))  #  For mode=2 featureExtraction
 
+    for time in range(times):
+        w = np.zeros((2, 11))  # For mode=-2 featureExtraction
+        # w = np.zeros((2, 15))  #  For mode=-3 featureExtraction
+        w[0, 2] = 0.1
+        w[1, 2] = -0.1
+        w[0, -1] = 5
+        w[1, -1] = 5
+        print('*'*24, 'Time {}'.format(time + 1), '*'*24)
+        episode_lens = []
+        for i_episode in range(episode_no):
+            reward_history = []
+            action_history = []
+            features_history=[]
+            end_counter = 0
 
-for i_episode in range(episode_no):
-    reward_history = []
-    action_history = []
-    features_history=[]
-    end_counter = 0
-
-    observation = env.reset()
-    features = featureExtraction(observation, mode=feature_mode)
-    features_history.append(features)
-    print('first_of_episode features: ', features_history)
-    if i_episode>5:
-        eps = 0.1
-
-    if show_details:
-        print('-'*20,'Episode {}'.format(i_episode), '-'*20)
-    for t in range(500):
-        #alpha *= np.exp(-t/500)
-        env.render()
-        #action = env.action_space.sample()
-        q_mat = q(features, w)
-        action, action_index = actionsSelection(q_mat, actions_dict, eps=eps)
-        observation, reward, done, info = env.step(action)
-
-        if not done:
-            angle = observation[2] * 180 / np.pi
-            if abs(angle) < 5:
-                eps = eps
-            else:
-                eps = eps
-            #target = reward + gamma * np.max(q(featureExtraction(observation, mode=feature_mode), w))
-            #current_estimation = np.max(q_mat)
-            #temporal_difference = target - current_estimation
-            action_history.append(action_index)
-            reward_history.append(reward)
-            if t > tdN - 1:
-                #temporal_difference = temporalDifference(action_history, reward_history, features_history, gamma, w)
-                temporal_difference = temporalDifferenceN(tdN, action_history, reward_history, features_history, gamma, w)
-                #print('in While', '-'*50)
-                #print(features_history)
-                w = updateWeights(w, action_history[-tdN -1], temporal_difference, features_history[-tdN -1], alpha=alpha)
-
-            features_history.append(features)
+            observation = env.reset()
             features = featureExtraction(observation, mode=feature_mode)
+            features_history.append(features)
+            print('first_of_episode features: ', features_history)
+            if i_episode>5:
+                eps = 0.1
 
             if show_details:
-                print('episode: {} \t t: {}'.format(i_episode, t))
-                print('angle: {}'.format(features[2, 0] * 180 / np.pi))
-                print('features: {}'.format(features))
-                print('q_mat')
-                print(q_mat)
-                print('action', action)
-                print('weights: ')
-                print(w)
+                print('-'*20,'Episode {}'.format(i_episode), '-'*20)
+            for t in range(500):
+                #alpha *= np.exp(-t/500)
+                #env.render()
+                #action = env.action_space.sample()
+                q_mat = q(features, w)
+                action, action_index = actionsSelection(q_mat, actions_dict, eps=eps)
+                observation, reward, done, info = env.step(action)
 
-        if done:
-            end_counter += 1
-            if end_counter > 50:
-                episode_lens.append(t)
-                print("Episode {} finished after {} timesteps".format(i_episode, t+1))
-                break
+                if not done:
+                    angle = observation[2] * 180 / np.pi
+                    if abs(angle) < 5:
+                        eps = eps
+                    else:
+                        eps = eps
+                    #target = reward + gamma * np.max(q(featureExtraction(observation, mode=feature_mode), w))
+                    #current_estimation = np.max(q_mat)
+                    #temporal_difference = target - current_estimation
+                    action_history.append(action_index)
+                    reward_history.append(reward)
+                    if t > tdN - 1:
+                        #temporal_difference = temporalDifference(action_history, reward_history, features_history, gamma, w)
+                        temporal_difference = temporalDifferenceN(tdN, action_history, reward_history, features_history, gamma, w)
+                        #print('in While', '-'*50)
+                        #print(features_history)
+                        w = updateWeights(w, action_history[-tdN -1], temporal_difference, features_history[-tdN -1], alpha=alpha)
 
-    episode_lens.append(t)
+                    features_history.append(features)
+                    features = featureExtraction(observation, mode=feature_mode)
 
-plt.figure()
-plt.xticks([])
-plt.plot([i for i in range(len(episode_lens))], episode_lens, 'ro--')
-plt.show()
+                    if show_details:
+                        print('episode: {} \t t: {}'.format(i_episode, t))
+                        print('angle: {}'.format(features[2, 0] * 180 / np.pi))
+                        print('features: {}'.format(features))
+                        print('q_mat')
+                        print(q_mat)
+                        print('action', action)
+                        print('weights: ')
+                        print(w)
+
+                if done:
+                    end_counter += 1
+                    if end_counter > 50:
+                        episode_lens.append(t)
+                        print("Episode {} finished after {} timesteps".format(i_episode, t+1))
+                        break
+
+            episode_lens.append(t)
+        data.append(np.array(episode_lens))
+
+    data_array = np.array(data)
+    np.save(output_file, data_array)
+    print('Done!!!')
+
+runCart(100)
 env.close()
