@@ -75,7 +75,7 @@ def actionsSelection(q_mat, actions_dict, eps=0.1):
         return actions_dict[np.argmax(q_mat)], np.argmax(q_mat)
     else:
         a = np.random.randint(0, 2)
-        print('random!', a)
+        #print('random!', a)
         return actions_dict[a], a
 
 def updateWeights(w, action, td, features, alpha = 1):
@@ -144,7 +144,6 @@ def runCart(times, no_of_episodes=50, output_file='Cartpole'):
             observation = env.reset()
             features = featureExtraction(observation, mode=feature_mode)
             features_history.append(features)
-            print('first_of_episode features: ', features_history)
             if i_episode>5:
                 eps = 0.1
 
@@ -193,7 +192,7 @@ def runCart(times, no_of_episodes=50, output_file='Cartpole'):
                     end_counter += 1
                     if end_counter > 50:
                         episode_lens.append(t)
-                        print("Episode {} finished after {} timesteps".format(i_episode, t+1))
+                        #print("Episode {} finished after {} timesteps".format(i_episode, t+1))
                         break
 
             episode_lens.append(t)

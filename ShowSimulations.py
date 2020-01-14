@@ -10,4 +10,9 @@ def plotDataMean(data):
         plt.plot(i + 1, mean[i], 'ro')
     plt.show()
 
+def showData(data):
+    print(data)
+
+showData(data)
+
 plotDataMean(data)
