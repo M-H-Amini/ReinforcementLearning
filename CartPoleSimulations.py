@@ -108,14 +108,14 @@ def temporalDifferenceN(n, action_history, reward_history, features_history, gam
 def lambdaReturn():
     pass
 
-def runCart(times, no_of_episodes=50, output_file='Cartpole'):
+def runCart(times, no_of_episodes=50, eps=0.1 , output_file='Cartpole'):
     data = []
     actions_dict = {0: 1, 1: 0}
     gamma = 0.8
     alpha = 0.03
     feature_mode = -2
-    episode_no = 25
-    eps = 0.15
+    episode_no = no_of_episodes
+    eps = eps
     tdN = 4
     show_details = False
     #w = np.array([[5], [-5]])
@@ -144,8 +144,6 @@ def runCart(times, no_of_episodes=50, output_file='Cartpole'):
             observation = env.reset()
             features = featureExtraction(observation, mode=feature_mode)
             features_history.append(features)
-            if i_episode>5:
-                eps = 0.1
 
             if show_details:
                 print('-'*20,'Episode {}'.format(i_episode), '-'*20)
@@ -202,5 +200,15 @@ def runCart(times, no_of_episodes=50, output_file='Cartpole'):
     np.save(output_file, data_array)
     print('Done!!!')
 
-runCart(100)
+runCart(100, eps=0.1, output_file='Cartpole-eps0.1')
+runCart(100, eps=0.15, output_file='Cartpole-eps0.15')
+runCart(100, eps=0.2, output_file='Cartpole-eps0.2')
+runCart(100, eps=0.25, output_file='Cartpole-eps0.25')
+runCart(100, eps=0.3, output_file='Cartpole-eps0.3')
+runCart(100, eps=0.35, output_file='Cartpole-eps0.35')
+runCart(100, eps=0.4, output_file='Cartpole-eps0.4')
+runCart(100, eps=0.45, output_file='Cartpole-eps0.45')
+runCart(100, eps=0.5, output_file='Cartpole-eps0.5')
+
+
 env.close()
