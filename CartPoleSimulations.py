@@ -1,6 +1,8 @@
 import gym
 import numpy as np
 from matplotlib import pyplot as plt
+import MHFuzzy as mh
+from MHFuzzy import *
 
 env = gym.make('CartPole-v0')
 
@@ -104,11 +106,14 @@ def temporalDifferenceN(n, action_history, reward_history, features_history, gam
     td = target - current_estimation
     return td
 
+def distance(x):
+    return np.sqrt(x[0]**2 + x[2]**2)
+
 #  To be done later...
 def lambdaReturn():
     pass
 
-def runCart(times, no_of_episodes=50, eps=0.1 , output_file='Cartpole'):
+def runCart(times, no_of_episodes=50, eps=0.1 , output_file='Cartpole', fuzzy=False):
     data = []
     actions_dict = {0: 1, 1: 0}
     gamma = 0.8
@@ -117,6 +122,17 @@ def runCart(times, no_of_episodes=50, eps=0.1 , output_file='Cartpole'):
     episode_no = no_of_episodes
     eps = eps
     tdN = 4
+
+    #  Fuzzy part!
+    small = MHMember(0, 0, 0.1, 0.15)
+    medium = MHMember(0.1, 0.2, 0.3, 0.4)
+    big = MHMember(0.35, 0.5, 0.5, 0.5)
+    close = MHMember(0, 0, 0, 0.2)
+    far = MHMember(0.1, 1, 100, 100)
+    rule1 = MHRule([close], [small])
+    rule2 = MHRule([far], [big])
+    fis = MHFIS([rule1, rule2])
+    #print(fis.output([20])
     show_details = False
     #w = np.array([[5], [-5]])
     #w = np.zeros((2, 1))
@@ -139,6 +155,7 @@ def runCart(times, no_of_episodes=50, eps=0.1 , output_file='Cartpole'):
             reward_history = []
             action_history = []
             features_history=[]
+            eps_history = []
             end_counter = 0
 
             observation = env.reset()
@@ -147,20 +164,23 @@ def runCart(times, no_of_episodes=50, eps=0.1 , output_file='Cartpole'):
 
             if show_details:
                 print('-'*20,'Episode {}'.format(i_episode), '-'*20)
+
             for t in range(500):
                 #alpha *= np.exp(-t/500)
                 #env.render()
                 #action = env.action_space.sample()
+                if fuzzy:
+                    eps = fis.output([distance(features)])
+                    eps_history.append(eps)
+                    #print(20*'_', 'distance={}'.format(distance(features)), 'eps={}'.format(eps), 20*'_')
+
                 q_mat = q(features, w)
                 action, action_index = actionsSelection(q_mat, actions_dict, eps=eps)
                 observation, reward, done, info = env.step(action)
 
+
                 if not done:
                     angle = observation[2] * 180 / np.pi
-                    if abs(angle) < 5:
-                        eps = eps
-                    else:
-                        eps = eps
                     #target = reward + gamma * np.max(q(featureExtraction(observation, mode=feature_mode), w))
                     #current_estimation = np.max(q_mat)
                     #temporal_difference = target - current_estimation
@@ -198,8 +218,12 @@ def runCart(times, no_of_episodes=50, eps=0.1 , output_file='Cartpole'):
 
     data_array = np.array(data)
     np.save(output_file, data_array)
+    np.save('eps', np.array(eps_history))
     print('Done!!!')
 
+output_file_common_name = 'FuzzyCartpole'
+runCart(100, output_file=output_file_common_name, fuzzy=True)
+'''
 runCart(100, eps=0.1, output_file='Cartpole-eps0.1')
 runCart(100, eps=0.15, output_file='Cartpole-eps0.15')
 runCart(100, eps=0.2, output_file='Cartpole-eps0.2')
@@ -209,6 +233,6 @@ runCart(100, eps=0.35, output_file='Cartpole-eps0.35')
 runCart(100, eps=0.4, output_file='Cartpole-eps0.4')
 runCart(100, eps=0.45, output_file='Cartpole-eps0.45')
 runCart(100, eps=0.5, output_file='Cartpole-eps0.5')
-
+'''
 
 env.close()

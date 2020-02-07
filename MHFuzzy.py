@@ -7,6 +7,7 @@ class MHMember:
         self.b = b
         self.c = c
         self.d = d
+        self.center = (b+c)/2
 
     def __call__(self, x):
         if x < self.a or x > self.d:
@@ -31,16 +32,25 @@ class MHFIS:
         self.rule_list = rule_list
 
     def output(self, inputs):
-        return max([self.rule_list[i].evaluate(inputs) for i in range(len(self.rule_list))])
+        outputs = set()
+        for i in range(len(self.rule_list)):
+            outputs.add(self.rule_list[i].output_list[0])
+        centers = []
+        weights = []
+        for i in outputs:
+            weights.append(max([self.rule_list[j].evaluate(inputs) for j in range(len(self.rule_list)) if self.rule_list[j].output_list[0].center==i.center]))
+            centers.append(i.center)
+        output = (sum([centers[i] * weights[i] for i in range(len(centers))]))/(sum(weights))
+        return output
 
 if __name__=='__main__':
-    small = MHMember(0, 0, 0, 0.15)
+    small = MHMember(0, 0, 0.1, 0.15)
     medium = MHMember(0.1, 0.2, 0.3, 0.4)
     big = MHMember(0.35, 0.5, 0.5, 0.5)
     close = MHMember(0, 0, 0, 10)
-    far = MHMember(8, 12, 100, 100)
+    far = MHMember(5, 10, 100, 100)
     rule1 = MHRule([close], [small])
     rule2 = MHRule([far], [big])
     fis = MHFIS([rule1, rule2])
-    print(fis.output([1]))
+    print(fis.output([20]))
 
