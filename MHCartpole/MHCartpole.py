@@ -45,8 +45,10 @@ def findEpisodeStats(hist_obs, hist_act, hist_rew):
     print(X_batch_l[0])
     print(y_batch_l)
     for i in range(5):
-        model_l.train_on_batch(X_batch_l, y_batch_l)
-        model_r.train_on_batch(X_batch_r, y_batch_r)
+        if len(X_batch_l):
+            model_l.train_on_batch(X_batch_l, y_batch_l)
+        if len(X_batch_r):
+            model_r.train_on_batch(X_batch_r, y_batch_r)
     
     print('After Training: ')
 
@@ -81,6 +83,7 @@ def selectAction(obs, eps=0.1, policy='MonteCarlo'):
 hist_obs = []
 hist_act = []
 hist_rew = []
+episode_lens = []
 
 for i_episode in range(200):
     hist_obs = []
@@ -93,7 +96,7 @@ for i_episode in range(200):
         env.render()
         # print(observation)
         # action = env.action_space.sample()
-        action = selectAction(observation, 0.2, 'heuristic')
+        action = selectAction(observation, 0.2, 'mc')
         hist_act.append(action)
         observation, reward, done, info = env.step(action)
         hist_rew.append(reward)
@@ -101,8 +104,9 @@ for i_episode in range(200):
         sleep(0.02)
         if done:
             print("Episode finished after {} timesteps".format(t+1))
-            # findEpisodeStats(hist_obs, hist_act, hist_rew)
-            # input()
+            findEpisodeStats(hist_obs, hist_act, hist_rew)
+            episode_lens.append(t)            
             break
 
+print(episode_lens)
 env.close()
