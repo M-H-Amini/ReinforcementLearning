@@ -1,9 +1,11 @@
 import numpy as np 
 import gym
 from time import sleep 
+import keras
 from keras.models import Sequential
 from keras.layers import Dense
 from keras.optimizers import Adam
+import matplotlib.pyplot as plt
 
 env = gym.make('CartPole-v0')
 
@@ -42,8 +44,6 @@ def findEpisodeStats(hist_obs, hist_act, hist_rew):
     y_batch_r = np.array(y_batch_r)
     print(len(X_batch_l), len(y_batch_l), len(X_batch_r), len(y_batch_r))
     print(X_batch_l.shape, X_batch_r.shape)
-    print(X_batch_l[0])
-    print(y_batch_l)
     for i in range(5):
         if len(X_batch_l):
             model_l.train_on_batch(X_batch_l, y_batch_l)
@@ -79,13 +79,20 @@ def selectAction(obs, eps=0.1, policy='MonteCarlo'):
         else:
             return 0
 
+def saveModels():
+    model_l.save('model_l')
+    model_r.save('model_r')
+
+def loadModels():
+    model_l = keras.models.load_model('model_l')
+    model_r = keras.models.load_model('model_r')
 
 hist_obs = []
 hist_act = []
 hist_rew = []
 episode_lens = []
 
-for i_episode in range(200):
+for i_episode in range(50):
     hist_obs = []
     hist_act = []
     hist_rew = []
@@ -103,10 +110,16 @@ for i_episode in range(200):
         hist_obs.append(observation)
         sleep(0.02)
         if done:
-            print("Episode finished after {} timesteps".format(t+1))
+            print("Episode {} finished after {} timesteps".format(i_episode, t+1))
             findEpisodeStats(hist_obs, hist_act, hist_rew)
             episode_lens.append(t)            
+            if not (i_episode % 10):
+                saveModels()
             break
 
 print(episode_lens)
+plt.figure()
+plt.plot(range(len(episode_lens)), episode_lens, 'r--x')
+plt.title('Episode Lengths')
+plt.show()
 env.close()
