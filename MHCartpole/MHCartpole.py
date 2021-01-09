@@ -86,6 +86,11 @@ def saveModels():
 def loadModels():
     model_l = keras.models.load_model('model_l')
     model_r = keras.models.load_model('model_r')
+    return model_l, model_r
+
+model_l, model_r = loadModels()
+eps = 0.1
+
 
 hist_obs = []
 hist_act = []
@@ -103,7 +108,7 @@ for i_episode in range(50):
         env.render()
         # print(observation)
         # action = env.action_space.sample()
-        action = selectAction(observation, 0.2, 'mc')
+        action = selectAction(observation, eps, 'mc')
         hist_act.append(action)
         observation, reward, done, info = env.step(action)
         hist_rew.append(reward)
