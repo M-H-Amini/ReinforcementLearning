@@ -16,12 +16,12 @@ def loadModel():
     model = keras.models.load_model('model')
     return model
 
-model = loadModel()
+# model = loadModel()
 
-# model = Sequential([
-#     Dense(4, 'tanh', input_shape=(4,)),
-#     Dense(2)
-# ])
+model = Sequential([
+    Dense(4, 'tanh', input_shape=(4,)),
+    Dense(2)
+])
 
 model_train = Sequential([
     model,
@@ -106,7 +106,7 @@ def selectAction(obs, eps=0.1, policy='MonteCarlo'):
         else:
             return 0
 
-eps = 0.1
+eps = 0.2
 
 
 hist_obs = []
