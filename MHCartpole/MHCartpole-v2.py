@@ -103,7 +103,7 @@ for i_episode in range(1000):
 
     observation = env.reset()
     hist_obs.append(observation)
-    for t in range(50):
+    for t in range(200):
         env.render()
         action = selectAction(model_target, observation, eps, 'q')
         hist_act.append(action)
@@ -118,9 +118,6 @@ for i_episode in range(1000):
                 done_t = 0
                 print("Episode {} finished after {} timesteps".format(i_episode, t+1))
                 episode_lens.append(t)            
-                if not (i_episode % 3):
-                    model_target = copyModel(model_target, model)
-                    print("Models copied!!!")
             else:
                 done_t += 1
         #     if not (i_episode % 10):
@@ -128,6 +125,10 @@ for i_episode in range(1000):
         #     if done_t > done_len:
         #         done_flag = False
         #         break
+    
+    if not (i_episode % 3):
+                    model_target = copyModel(model_target, model)
+                    print("Models copied!!!")
 
 print(episode_lens)
 plt.figure()
