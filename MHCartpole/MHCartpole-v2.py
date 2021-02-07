@@ -10,7 +10,12 @@ import matplotlib.pyplot as plt
 ##  mcmodel is trained well for monte carlo
 
 env = gym.make('CartPole-v0')
-name = 'qmodel'
+name = 'qmodel_n5'
+
+def saveStats(name, episode_lens):
+    np.save(name, np.array(episode_lens))
+
+def loadStats()
 
 def saveModel(name):
     model.save(name)
@@ -32,7 +37,7 @@ model_train = Sequential([
 
 model_train.compile(optimizer=SGD(0.01), loss='mse')
 
-model = loadModel(name)
+# model = loadModel(name)
 model_target = keras.models.clone_model(model)
 
 def copyModel(target, source):
@@ -121,7 +126,7 @@ for i_episode in range(500):
     observation = env.reset()
     hist_obs.append(observation)
     for t in range(200):
-        env.render()
+        # env.render()
         eps = setEpsilon(episode_lens, hist_obs, i_episode)
         # print(f'Performance: {performanceIndex(observation)}, eps: {eps}')
         action = selectAction(model_target, observation, eps, 'q')
@@ -130,13 +135,13 @@ for i_episode in range(500):
         hist_rew.append(reward)
         hist_obs.append(observation)
         qlearning(5, 0.8, t ,model_train, model, hist_obs, hist_act, hist_rew)
-        sleep(0.01)
+        # sleep(0.01)
         if done:
             if done_flag == False:
                 done_flag = True
                 done_t = 0
                 print("Episode {} finished after {} timesteps".format(i_episode, t+1))
-                episode_lens.append(t)            
+                episode_lens.append(t+1)            
             else:
                 done_t += 1
                 if done_t > done_len:
