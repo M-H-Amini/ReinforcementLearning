@@ -19,7 +19,6 @@ def loadModel(name):
     model = keras.models.load_model(name)
     return model
 
-# model = loadModel(name)
 
 model = Sequential([
     Dense(6, 'tanh', input_shape=(4,)),
@@ -31,8 +30,9 @@ model_train = Sequential([
     Dense(1)
 ])
 
-model_train.compile(optimizer=Adam(0.01), loss='mse')
+model_train.compile(optimizer=SGD(0.01), loss='mse')
 
+model = loadModel(name)
 model_target = keras.models.clone_model(model)
 
 def copyModel(target, source):
@@ -44,6 +44,23 @@ def processModel(model, i):
     w[i, 0] = 1
     model.layers[-1].set_weights([w, np.array([0])])
     model.layers[-1].trainable = False
+
+def performanceIndex(observation):
+    weights = np.array([1, 1, 1, 1])
+    return np.dot(np.abs(observation), weights)
+
+def setEpsilon(episode_lens, hist_obs, episode, mode='const'):
+    eps = 0.1
+    if mode=='const':
+        return eps
+    if len(episode_lens) > 3:
+        mean = sum(episode_lens[-3:]) / 3
+        if mean > 190:
+            eps = 0.05
+            print('Eps: 0.05')
+    
+    eps = 0.3
+    return eps
 
 def qlearning(n, lamda, t, model_train, model, hist_obs, hist_act, hist_rew):
     '''
@@ -84,7 +101,7 @@ def selectAction(model, obs, eps=0.1, policy='q'):
             return 0
 
 done_t = 0
-done_len = 10
+done_len = 15
 done_flag = True
 eps = 0.3
 
@@ -94,7 +111,7 @@ hist_act = []
 hist_rew = []
 episode_lens = []
 
-for i_episode in range(1000):
+for i_episode in range(500):
     print('-'*20, 'new episode!')
     done_flag = False
     hist_obs = []
@@ -105,12 +122,14 @@ for i_episode in range(1000):
     hist_obs.append(observation)
     for t in range(200):
         env.render()
+        eps = setEpsilon(episode_lens, hist_obs, i_episode)
+        # print(f'Performance: {performanceIndex(observation)}, eps: {eps}')
         action = selectAction(model_target, observation, eps, 'q')
         hist_act.append(action)
         observation, reward, done, info = env.step(action)
         hist_rew.append(reward)
         hist_obs.append(observation)
-        qlearning(3, 0.8, t ,model_train, model, hist_obs, hist_act, hist_rew)
+        qlearning(5, 0.8, t ,model_train, model, hist_obs, hist_act, hist_rew)
         sleep(0.01)
         if done:
             if done_flag == False:
@@ -120,15 +139,15 @@ for i_episode in range(1000):
                 episode_lens.append(t)            
             else:
                 done_t += 1
-        #     if not (i_episode % 10):
-        #         saveModel(name)
-        #     if done_t > done_len:
-        #         done_flag = False
-        #         break
+                if done_t > done_len:
+                    done_flag = False
+                    break   
     
     if not (i_episode % 3):
                     model_target = copyModel(model_target, model)
                     print("Models copied!!!")
+    if not (i_episode % 10):
+        saveModel(name)
 
 print(episode_lens)
 plt.figure()
