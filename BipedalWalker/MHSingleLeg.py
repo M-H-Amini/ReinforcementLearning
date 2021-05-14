@@ -7,7 +7,10 @@ import os
 import itertools
 
 LOAD_MODEL = True
-episode_duration = 500
+SAVE_MODEL = True
+model_names = 'single_leg_model', 'single_leg_action_model', 'single_leg_episodes'
+
+episode_duration = 1000
 
 def createModelInput(observations, actions):
     # observations[4:8] = observations[4:8] / 10
@@ -15,7 +18,7 @@ def createModelInput(observations, actions):
     # observations[14:23] = observations[14:23] / 10
     return np.concatenate((observations, actions))
 
-def selectAction(model, observation, candidate_actions, eps=0.2):
+def selectAction(model, observation, candidate_actions, eps=0.5):
     n = np.random.rand()
     if n > eps:
         states = [np.concatenate((observation, candidate_actions[i])) for i in range(len(candidate_actions))]
@@ -29,12 +32,12 @@ def selectAction(model, observation, candidate_actions, eps=0.2):
 
 
 env = gym.make('BipedalWalker-v3')
-action = np.array([0., 0, 0, 0])
+action = np.array([0., 0, -1, 1])
 
 if LOAD_MODEL:
-    if os.path.exists('model') and os.path.exists('action_model'):
-        model = load_model('model')
-        action_model = load_model('action_model')
+    if os.path.exists(model_names[0]) and os.path.exists(model_names[1]):
+        model = load_model(model_names[0])
+        action_model = load_model(model_names[1])
         print('Models loaded!')
     else:
         raise OSError('No models saved!!!')
@@ -47,15 +50,14 @@ else:
 
 
 ##  Discretizing actions...
-torques = np.linspace(-1, 1, 4)
+action_no = 8
+torques = np.linspace(-1, 1, action_no)
 candidate_indexes = []
 candidate_actions = []
 
-for i in range(4):
-    for j in range(4):
-        for k in range(4):
-            for l in range(4):
-                candidate_actions.append([torques[i], torques[j], torques[k], torques[l]])
+for i in range(action_no):
+    for j in range(action_no):
+        candidate_actions.append([torques[i], torques[j], -1, 1])
 
 ##  Training...
 def plan(model, n, obs_hist, act_hist, rew_hist):
@@ -127,11 +129,11 @@ for i_episode in range(1000000):
                 
             episode_lens.append(t)
 
-            if not(i_episode % 10):
+            if SAVE_MODEL and not(i_episode % 10):
                 print('Models saved!!!')
-                model.save('model')
-                action_model.save('action_model')
-                np.save('episodes', np.array(episode_lens))
+                model.save(model_names[0])
+                action_model.save(model_names[1])
+                np.save(model_names[2], np.array(episode_lens))
             break
 env.close()
 
