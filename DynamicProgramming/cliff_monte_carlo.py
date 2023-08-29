@@ -74,70 +74,86 @@ def pi(a, s):
     probs = np.ones((38, 4)) * 0.25
     return probs[s][a]
 
-def createA(gamma=1):
-    A = np.eye(38)
-    for s in range(37):
-        for s_prime in neighbours(s):
-            s_prime_ = 37 if s_prime == 47 else s_prime
-            for r in [-1, -100]:
-                for a in range(4):
-                    A[s, s_prime_] += -gamma * pi(a, s) * p(s_prime, r, s, a)
-    return A
-
-def createB():
-    B = np.zeros((38,1))
-    for s in range(37):
-        for s_prime in neighbours(s):
-            s_prime_ = 37 if s_prime == 47 else s_prime
-            for r in [-1, -100]:
-                for a in range(4):
-                    B[s] += pi(a, s) * p(s_prime, r, s, a) * r
-    B[37] = 0
-    return B
-
-
 def visualize(v):
     v_vis = np.zeros((4, 12), float)
-    for i in range(3):
+    for i in range(4):
         for j in range(12):
-            v_vis[i, j] = v[i * 12 + j, 0]
-    v_vis[3, 0] = v[36, 0]
+            v_vis[i, j] = v[i * 12 + j]
     plt.figure(figsize=(20, 8))
-    sns.heatmap(v_vis, annot=True, fmt='.1f', linewidths=.5, cmap='YlGnBu')
+    sns.heatmap(v_vis, annot=True, fmt='.2f', linewidths=.5, cmap='YlGnBu')
     plt.title('Optimal Value Function')
     plt.xlabel('Column')
     plt.ylabel('Row')
     plt.show()
     plt.close()
 
-##  What if we set gamma to 0.5?! Why?!
-A = createA(gamma=1)
-b = createB()
-breakpoint()
-v = np.dot(np.linalg.inv(A), b)
-visualize(v)
+def isTerminated(s, r):
+    return True if r == 0 or r == -100 else False
+
+class MHAgent:
+    def __init__(self):
+        self.hist_s = []
+        self.hist_a = []
+        self.hist_r = []
+        self.hist_s_prime = []
+        self.hist_done = []
+        self.v = [0 for _ in range(48)]
+        self.N = [0 for _ in range(48)]
+        print('Agent created...')
+
+    def updateBuffer(self, s, a, s_prime, r, done):
+        if s_prime == 47:
+            r = 0
+        self.hist_s.append(s)
+        self.hist_a.append(a)
+        self.hist_s_prime.append(s_prime)
+        self.hist_r.append(r)
+        self.hist_done.append(done)
+
+    def updateV(self):
+        ##  Finding episode init and final timesteps...
+        self.done_indices = np.where(np.array(self.hist_done) == True)[0]
+        self.init_indices = [0] + [i+1 for i in self.done_indices[:-1]]
+        ##  Updating state-value function...
+        self.v = [0 for _ in range(48)]
+        self.n = [0 for _ in range(48)]
+        for i in range(len(self.init_indices)):
+            for t in range(self.init_indices[i], self.done_indices[i]+1):
+                g = sum([self.hist_r[n] for n in range(t, self.done_indices[i]+1)])
+                self.v[self.hist_s[t]] = g
+                self.n[self.hist_s[t]] += 1
+                breakpoint()
+        for s in range(len(self.v)):
+            if self.n[s]:
+                self.v[s] = self.v[s] / self.n[s]
+        return self.v
 
 
-env = gym.make('CliffWalking-v0', render_mode='human')
+mha = MHAgent()
+    
+# env = gym.make('CliffWalking-v0', render_mode='human')
+env = gym.make('CliffWalking-v0')
 observation, info = env.reset()
 
 action_dict = {0: 'up', 1: 'right', 2: 'down', 3: 'left'}
 
-for _ in range(1000):
-    s_prime = [nextState(observation, a)[0] for a in range(4)]
-    if 47 in s_prime:
-        s_prime = [s if s != 47 else 37 for s in s_prime]
-    vs = [v[s, 0] for s in s_prime]
-    action = np.argmax(vs)
-    print(f'Observation: {observation}, Action: {action_dict[action]}')
+t = 0
+while True:
+    action = np.random.randint(4)
+    old_observation = observation
     observation, reward, terminated, truncated, info = env.step(action)
-    print(f'Observation: {observation}')
-    print(f'Reward: {reward}')
-    print(f'Terminated: {terminated}')
-    print(f'Truncated: {truncated}')
-    print(f'Info: {info}')
-    sleep(0.3)
-    if terminated or truncated:
-        observation, info = env.reset()
+    mha.updateBuffer(old_observation, action, observation, reward, done:=isTerminated(observation, reward))
+    if terminated or truncated or done:
+        observation, info = env.reset()    
+    if t and not t % 50:
+        v = mha.updateV()
+        print(f'Timestep: {t}, N[35] = {mha.n[35]}')
+        if mha.n[35] > 200:
+            break
+    t += 1
+
+
+v = mha.updateV()
+breakpoint()
 
 env.close()
