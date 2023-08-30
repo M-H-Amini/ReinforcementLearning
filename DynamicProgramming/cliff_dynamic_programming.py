@@ -92,7 +92,7 @@ def improvePolicy(v, probs, eps=0.5):
         v_max = max([v for (v, a) in vs])
         a_max = [a for (v, a) in vs if v == v_max]
         p_max = (1 - eps) / len(a_max)
-        p_nonmax = eps / (4 - len(a_max))
+        p_nonmax = eps / (4 - len(a_max)) if 4 - len(a_max) else 0
         ps = list(map(lambda a: p_max if a in a_max else p_nonmax, range(4)))
         probs[s] = np.array(ps)
     return probs
@@ -114,8 +114,8 @@ def visualize(v):
 
 ##  What if we set gamma to 0.5?! Why?!
 probs = np.ones((48, 4)) * 0.25
-gamma = 0.5
-eps = 0.01
+gamma = 0.9
+eps = 0.2
 i = 0
 while True:
     i -=- 1
