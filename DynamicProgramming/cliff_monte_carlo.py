@@ -79,11 +79,12 @@ def visualize(v):
     for i in range(4):
         for j in range(12):
             v_vis[i, j] = v[i * 12 + j]
-    plt.figure(figsize=(20, 8))
-    sns.heatmap(v_vis, annot=True, fmt='.2f', linewidths=.5, cmap='YlGnBu')
+    plt.figure(figsize=(24, 8))
+    sns.heatmap(v_vis, annot=True, fmt='.3f', linewidths=.5, cmap='YlGnBu')
     plt.title('Optimal Value Function')
     plt.xlabel('Column')
     plt.ylabel('Row')
+    plt.savefig('value_mc.png')
     plt.show()
     plt.close()
 
@@ -91,14 +92,16 @@ def isTerminated(s, r):
     return True if r == 0 or r == -100 else False
 
 class MHAgent:
-    def __init__(self):
+    def __init__(self, gamma=1):
         self.hist_s = []
         self.hist_a = []
         self.hist_r = []
         self.hist_s_prime = []
         self.hist_done = []
+        self.g = [0 for _ in range(48)]
         self.v = [0 for _ in range(48)]
         self.N = [0 for _ in range(48)]
+        self.gamma = gamma
         print('Agent created...')
 
     def updateBuffer(self, s, a, s_prime, r, done):
@@ -109,27 +112,29 @@ class MHAgent:
         self.hist_s_prime.append(s_prime)
         self.hist_r.append(r)
         self.hist_done.append(done)
+        ##  Update value if done...
+        if done:
+            for t, s in enumerate(self.hist_s):
+                self.g[s] += sum([self.hist_r[n] * self.gamma ** (n-t) for n in range(t, len(self.hist_s))])
+                self.N[s] -=- 1
+            self.clearBuffer()
+
+    def clearBuffer(self):
+        self.hist_s = []
+        self.hist_a = []
+        self.hist_r = []
+        self.hist_s_prime = []
+        self.hist_done = []
+            
 
     def updateV(self):
-        ##  Finding episode init and final timesteps...
-        self.done_indices = np.where(np.array(self.hist_done) == True)[0]
-        self.init_indices = [0] + [i+1 for i in self.done_indices[:-1]]
-        ##  Updating state-value function...
-        self.v = [0 for _ in range(48)]
-        self.n = [0 for _ in range(48)]
-        for i in range(len(self.init_indices)):
-            for t in range(self.init_indices[i], self.done_indices[i]+1):
-                g = sum([self.hist_r[n] for n in range(t, self.done_indices[i]+1)])
-                self.v[self.hist_s[t]] = g
-                self.n[self.hist_s[t]] += 1
-                breakpoint()
         for s in range(len(self.v)):
-            if self.n[s]:
-                self.v[s] = self.v[s] / self.n[s]
+            if self.N[s]:
+                self.v[s] = self.g[s] / self.N[s]
         return self.v
 
 
-mha = MHAgent()
+mha = MHAgent(gamma=0.99)
     
 # env = gym.make('CliffWalking-v0', render_mode='human')
 env = gym.make('CliffWalking-v0')
@@ -142,18 +147,21 @@ while True:
     action = np.random.randint(4)
     old_observation = observation
     observation, reward, terminated, truncated, info = env.step(action)
+    reward = 0 if observation == 47 else reward
     mha.updateBuffer(old_observation, action, observation, reward, done:=isTerminated(observation, reward))
     if terminated or truncated or done:
         observation, info = env.reset()    
-    if t and not t % 50:
+    if t and not t % 1000:
         v = mha.updateV()
-        print(f'Timestep: {t}, N[35] = {mha.n[35]}')
-        if mha.n[35] > 200:
+        print(f'Timestep: {t}, N[35] = {mha.N[35]}')
+        if mha.N[35] >= 500:
             break
     t += 1
 
 
 v = mha.updateV()
+visualize(v)
+
 breakpoint()
 
 env.close()
