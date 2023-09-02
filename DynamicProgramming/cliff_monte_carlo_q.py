@@ -1,19 +1,19 @@
 #########################################################################################
 ##                                                                                     ##
 ##                                Mohammad Hossein  Amini                              ##
-##                              Title: Cliff - DP Iterative                            ##
+##                           Title: Cliff - Monte Carlo Control                        ##
 ##                                   Date: 2023/08/21                                  ##
 ##                                                                                     ##
 #########################################################################################
 
-##  Description: Dynamic Programming using Linear Equations...
+##  Description:
 
 
 import matplotlib.pyplot as plt
 import gymnasium as gym
 import seaborn as sns
 import numpy as np
-from time import sleep
+from collections import Counter
 sns.set_theme()
 
 def isForbidden(s):
@@ -90,9 +90,10 @@ class MHAgent:
         self.hist_r = []
         self.hist_s_prime = []
         self.hist_done = []
-        self.g = [0 for _ in range(48)]
-        self.v = [0 for _ in range(48)]
-        self.N = [0 for _ in range(48)]
+        self.g = np.zeros((48,4))
+        self.q = np.zeros_like(self.g)
+        self.N = Counter()
+        self.v = np.zeros((48,))
         self.gamma = gamma
         self.probs = np.ones((48, 4)) * 0.25
         self.eps = eps
@@ -109,8 +110,8 @@ class MHAgent:
         ##  Update value if done...
         if done:
             for t, s in enumerate(self.hist_s):
-                self.g[s] += sum([self.hist_r[n] * self.gamma ** (n-t) for n in range(t, len(self.hist_s))])
-                self.N[s] -=- 1
+                self.g[s][(a:=self.hist_a[t])] += sum([self.hist_r[n] * self.gamma ** (n-t) for n in range(t, len(self.hist_s))])
+                self.N.update([(s,a)])
             self.clearBuffer()
 
     def clearBuffer(self):
@@ -121,25 +122,24 @@ class MHAgent:
         self.hist_done = []
             
 
-    def updateV(self):
-        for s in range(len(self.v)):
-            if self.N[s]:
-                self.v[s] = self.g[s] / self.N[s]
-        return self.v
+    def updateQ(self):
+        for s in range(48):
+            for a in range(4):
+                if self.N[(s, a)]:
+                    self.q[s, a] = self.g[s, a] / self.N[(s, a)]
+            self.v[s] = sum([self.probs[s, a] * self.q[s, a] for a in range(4)])
+        return self.v, self.q
     
     def improvePolicy(self):
         for s in range(37):
-            s_primes_a = [(nextState(s, a), a) for a in range(4)]
-            s_primes_a = list(filter(lambda x: not isForbidden(x[0]), s_primes_a))
-            vs = list(map(lambda x: (v[x[0]], x[1]), s_primes_a))
-            v_max = max([v for (v, a) in vs])
-            a_max = [a for (v, a) in vs if v == v_max]
+            qmax = np.max(self.q[s])
+            a_max = [a for a in range(4) if self.q[s, a] == qmax]
             p_max = (1 - self.eps) / len(a_max)
             p_nonmax = self.eps / (4 - len(a_max)) if 4 - len(a_max) else 0
             ps = list(map(lambda a: p_max if a in a_max else p_nonmax, range(4)))
             self.probs[s] = np.array(ps)
-        self.g = [0 for _ in range(48)]
-        self.N = [0 for _ in range(48)]
+        self.g = np.zeros((48, 4))
+        self.N.clear()
         self.clearBuffer()
         return self.probs
     
@@ -148,7 +148,7 @@ class MHAgent:
     
 
 
-mha = MHAgent(gamma=0.99, eps=0.3) 
+mha = MHAgent(gamma=0.99, eps=0.1) 
 # env = gym.make('CliffWalking-v0', render_mode='human')
 env = gym.make('CliffWalking-v0')
 observation, info = env.reset()
@@ -156,29 +156,36 @@ action_dict = {0: 'up', 1: 'right', 2: 'down', 3: 'left'}
 
 t = 0
 probs = np.ones((48, 4)) * 0.25
-
+Gs = []
+G = 0
 while True:
     action = mha.act(observation)
     old_observation = observation
     observation, reward, terminated, truncated, info = env.step(action)
     reward = 0 if observation == 47 else reward
+    G += reward
     mha.updateBuffer(old_observation, action, observation, reward, done:=isTerminated(observation, reward))
     if terminated or truncated or done:
-        observation, info = env.reset()    
+        observation, info = env.reset()  
+        Gs.append(G)
+        G = 0  
     if t and not t % 1000:
-        v = mha.updateV()
+        v, q = mha.updateQ()
         print(f'Timestep: {t}')
         if not t % 100000:
-            old_probs = probs.copy()
             probs = mha.improvePolicy()
             visualize(mha.v)
-            if (old_probs == probs).all():
-                print('No further improvement...')
+            command = input('What to do?')
+            if command.lower() in ['exit', 'q']:
                 break
     t += 1
 
 
-v = mha.updateV()
+v, q = mha.updateQ()
 visualize(v)
+plt.figure()
+plt.plot(range(len(Gs)), Gs, 'r-o')
+plt.savefig('cliff_mc_returns.png')
+plt.show()
 breakpoint()
 env.close()
