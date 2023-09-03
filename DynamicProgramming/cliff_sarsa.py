@@ -77,7 +77,7 @@ def visualize(v):
     plt.title('Optimal Value Function')
     plt.xlabel('Column')
     plt.ylabel('Row')
-    plt.savefig('value_mc.png')
+    plt.savefig('value_sarsa.png')
     plt.show()
     plt.close('all')
 
@@ -112,7 +112,7 @@ def visualizePolicy(q):
     plt.title('Optimal Policy')
     plt.xlabel('Column')
     plt.ylabel('Row')
-    plt.savefig('policy_q_learning.png')
+    plt.savefig('policy_sarsa.png')
     plt.show()
     plt.close('all')
 
@@ -146,7 +146,7 @@ class MHAgent:
         self.hist_r.append(r)
         self.hist_done.append(done)
         ##  Update value if done...
-        self.v, self.q = self.updateQ(s, a, r, s_prime, alpha)
+        self.v, self.q = self.updateQ()
         return self.v, self.q
 
     def clearBuffer(self):
@@ -157,11 +157,16 @@ class MHAgent:
         self.hist_done = []
             
 
-    def updateQ(self, s, a, r, s_prime, alpha=None):
-        alpha = self.alpha if alpha is None else alpha
-        q_max = max([self.q[s_prime, a] for a in range(4)])
-        self.q[s, a] = self.q[s, a] + alpha * (r + self.gamma * q_max - self.q[s, a])
-        self.v[s] = sum([self.probs[s, a] * self.q[s, a] for a in range(4)])
+    def updateQ(self, alpha=None):
+        if len(self.hist_s) > 1:
+            alpha = self.alpha if alpha is None else alpha
+            s = self.hist_s[-2]
+            a = self.hist_a[-2]
+            r = self.hist_r[-2]
+            s_prime = self.hist_s[-1]
+            a_prime = self.hist_a[-1]
+            self.q[s, a] = self.q[s, a] + alpha * (r + self.gamma * self.q[s_prime, a_prime] - self.q[s, a])
+            self.v[s] = sum([self.probs[s, a] * self.q[s, a] for a in range(4)])
         return self.v, self.q
     
     def improvePolicy(self):
@@ -186,7 +191,7 @@ class MHAgent:
     
 
 
-mha = MHAgent(gamma=0.99, eps=0.1, alpha=0.9) 
+mha = MHAgent(gamma=0.99, eps=0.3, alpha=0.5) 
 # env = gym.make('CliffWalking-v0', render_mode='human')
 env = gym.make('CliffWalking-v0')
 observation, info = env.reset()

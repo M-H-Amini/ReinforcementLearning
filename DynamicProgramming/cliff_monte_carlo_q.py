@@ -76,7 +76,7 @@ def visualize(v):
     plt.title('Optimal Value Function')
     plt.xlabel('Column')
     plt.ylabel('Row')
-    plt.savefig('value_mc.png')
+    plt.savefig('value_q_learning.png')
     plt.show()
     plt.close()
 
