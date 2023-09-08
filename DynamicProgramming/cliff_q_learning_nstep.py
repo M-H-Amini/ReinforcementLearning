@@ -226,7 +226,6 @@ while True:
         G = 0  
     if t and not t % 1000:
         print(f'Timestep: {t}, MeanG: {np.mean(Gs[-10:])}')
-        # mha.improvePolicy()
         if not t % 100000:
             visualizePolicy(mha.q)
             visualize(mha.v)
