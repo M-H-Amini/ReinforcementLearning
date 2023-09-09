@@ -21,55 +21,8 @@ log.basicConfig(level=log.INFO, format='%(asctime)s - %(levelname)s - %(message)
 sns.set_theme()
 plt.rcParams['font.family'] = 'DejaVu Sans'
 
-def isForbidden(s):
-    return s in [37, 38, 39, 40, 41, 42, 43, 44, 45, 46]
-
 def state2Coord(s):
     return s // 12, s % 12
-
-def coord2State(r, c):
-    return r * 12 + c
-
-def isValid(r, c):
-    if r < 0 or r > 3:
-        return False 
-    if c < 0 or c > 11:
-        return False 
-    return True
-
-def neighbours(s):
-    n = list(set([nextState(s, a) for a in range(4)]))
-    n = list(filter(lambda x: (isValid(*state2Coord(x))), n))
-    return n
-
-def nextState(s, a):
-    r, c = state2Coord(s)
-    r_prime, c_prime = r, c
-    if a == 0:  ##  up...
-        r_prime = r - 1
-    elif a == 1:  ##  right...
-        c_prime = c + 1
-    elif a == 2:  ##  down...
-        r_prime = r + 1
-    elif a == 3:  ## left...
-        c_prime = c - 1
-    if not isValid(r_prime, c_prime):
-        r_prime, c_prime = r, c
-    return coord2State(r_prime, c_prime)
-
-def nextReward(s, a):
-    s_prime = nextState(s, a)
-    return -100 if isForbidden(s_prime) else (0 if s_prime == 47 else -1)
-
-def p(s_prime, r, s, a):
-    s_next = nextState(s, a)
-    r_next = nextReward(s, a)
-    return 1 if (s_prime, r) == (s_next, r_next) else 0
-
-
-def pi(a, s, probs=np.ones((48, 4)) * 0.25):    
-    return probs[s][a]
-
 
 def visualize(v):
     v_vis = np.zeros((4, 12), float)
@@ -172,7 +125,10 @@ class MHAgent:
             self.v, self.q = self.updateQ(s, a, r, s_prime, a_prime)
             self.clearBuffer()
             self.n_episodes -=- 1
-            # if not(self.n_episodes % 10):
+            if self.n_episodes and not(self.n_episodes % 100):
+                log.info(f'Episode: {self.n_episodes}, MeanG: {np.mean(Gs[-10:])}')
+                visualizePolicy(self.q)
+                visualize(self.v)
         if log.getLogger().isEnabledFor(log.DEBUG):
             input('Press any key to continue...')
         self.improvePolicy()
@@ -230,7 +186,7 @@ class MHAgent:
     
 
 
-mha = MHAgent(gamma=0.99, eps=0.1, alpha=0.8, landa=0.9) 
+mha = MHAgent(gamma=0.99, eps=0.2, alpha=0.1, landa=0.9) 
 # env = gym.make('CliffWalking-v0', render_mode='human')
 env = gym.make('CliffWalking-v0')
 observation, info = env.reset()
@@ -253,12 +209,12 @@ while True:
         G = 0  
     if t and not t % 1000:
         print(f'Timestep: {t}, MeanG: {np.mean(Gs[-10:])}')
-        if not t % 1000:
-            visualizePolicy(mha.q)
-            visualize(mha.v)
-            command = input('What to do?')
-            if command.lower() in ['exit', 'q']:
-                break
+        # if not t % 1000:
+        #     # visualizePolicy(mha.q)
+        #     # visualize(mha.v)
+        #     command = input('What to do?')
+        #     if command.lower() in ['exit', 'q']:
+        #         break
     t += 1
 
 
