@@ -1,4 +1,4 @@
-from mh_networks import createCritic, createActor, initialTrain
+from mh_networks import createCritic, createActor
 import tensorflow as tf
 from tensorflow.keras.optimizers import SGD, Adam
 import gymnasium as gym
@@ -12,9 +12,8 @@ class MHActorCritic:
     def __init__(self, model_v_path=None, model_a_path=None, lr=0.0001):
         self.model_v = createCritic((4,)) if model_v_path is None else tf.keras.models.load_model(model_v_path)
         self.model_a = createActor((4,), 2) if model_a_path is None else tf.keras.models.load_model(model_a_path)
-        self.model_a = initialTrain(self.model_a)
-        self.opt_v = SGD(learning_rate=lr)
-        self.opt_a = SGD(learning_rate=lr)
+        self.opt_v = Adam(learning_rate=lr)
+        self.opt_a = Adam(learning_rate=lr)
         self.hist_s = []
         self.hist_a = []
         self.hist_r = []
@@ -27,40 +26,65 @@ class MHActorCritic:
         self.hist_r.append(r)
         self.hist_s_prime.append(s_prime)
         self.hist_done.append(done)
-        self.update()
+        # if len(self.hist_s) >= 32:
+        s_list, a_list, r_list, s_prime_list, done_list = self.gatherExperience(n=31)
+        s_list.append(s)
+        a_list.append(a)
+        r_list.append(r)
+        s_prime_list.append(s_prime)
+        done_list.append(done)
+        self.update(s_list, a_list, r_list, s_prime_list, done_list)
+
+    def clearBuffer(self):
+        self.hist_s = []
+        self.hist_a = []
+        self.hist_r = []
+        self.hist_s_prime = []
+        self.hist_done = []
 
     def s2x(self, s):
         return np.expand_dims(s, 0)
 
-    def update(self):
-        s = self.hist_s[-1]
-        a = self.hist_a[-1]
-        r = self.hist_r[-1]
-        s_prime = self.hist_s_prime[-1]
-        done = self.hist_done[-1]
-        v_s = self.model_v(self.s2x(s))[0, 0]
-        print('\r', end='')
-        print(f'v_s: {v_s.numpy():4.2f}', end='')
-        v_s_prime = self.model_v(self.s2x(s_prime))[0, 0]
-        if done:
-            diff = r - v_s 
-        else:
-            diff = r + v_s_prime - v_s
+    def update(self, s_list, a_list, r_list, s_prime_list, done_list):
+        bs = len(s_list)
+        x = np.concatenate([self.s2x(s) for s in s_list], axis=0)
+        x_prime = np.concatenate([self.s2x(s_prime) for s_prime in s_prime_list], axis=0)
+        v_s = self.model_v(x).numpy()
+        # print('\r', end='')
+        # print(f'v_s: {v_s.numpy():4.2f}', end='')
+        v_s_prime = self.model_v(x_prime).numpy()
+        diff_list = np.array([r - v if done else r + v_prime - v for r, done, v, v_prime in zip(r_list, done_list, v_s, v_s_prime)])
         with tf.GradientTape(persistent=True) as tape:
-            v_s = -diff * self.model_v(self.s2x(s))
-            if a:
-                p = self.model_a(self.s2x(s))
-            else:
-                p = 1 - self.model_a(self.s2x(s))
+            v_s = - diff_list * self.model_v(x) / bs
+            p_list = []
+            for a, s in zip(a_list, s_list):
+                if a:
+                    p = self.model_a(self.s2x(s))
+                else:
+                    p = 1 - self.model_a(self.s2x(s))
+                p_list.append(p)
             
-            log_p = tf.math.log(p)
-            print(f'\ta: {a} r: {r:.2f}, p: {p.numpy()[0,0]:.2f}, log_p: {log_p.numpy()[0,0]:.2f}, diff: {diff:4.2f}', end='')
-            log_p = -diff * log_p
+
+            log_p = tf.math.log(p_list)[..., 0]
+            # print('log_p: ', log_p.shape, end='')
+            # print(f'\ta: {a} r: {r:.2f}, p: {p.numpy()[0,0]:.2f}, log_p: {log_p.numpy()[0,0]:.2f}, diff: {diff:4.2f}', end='')
+            log_p = -diff_list * log_p / bs
+            # print('log_p: ', log_p.shape, end='')
 
         grad_v = tape.gradient(v_s, self.model_v.trainable_variables)
         self.opt_v.apply_gradients(zip(grad_v, self.model_v.trainable_variables))
         grad_a = tape.gradient(log_p, self.model_a.trainable_variables)
         self.opt_a.apply_gradients(zip(grad_a, self.model_a.trainable_variables))
+
+
+    def gatherExperience(self, n=32):
+        indices = np.random.choice(range(len(self.hist_s)), size=(n,))
+        s_list = [self.hist_s[i] for i in indices]
+        a_list = [self.hist_a[i] for i in indices]
+        r_list = [self.hist_r[i] for i in indices]
+        s_prime_list = [self.hist_s_prime[i] for i in indices]
+        done_list = [self.hist_done[i] for i in indices]
+        return s_list, a_list, r_list, s_prime_list, done_list
         
 
     def act(self, observation):
@@ -80,8 +104,8 @@ def generateReward(observation, method='theta'):
 
 model_v_path = 'models/model_v'
 model_a_path = 'models/model_a'
-mha = MHActorCritic(lr=0.0001)
-# mha = MHActorCritic(model_v_path=model_v_path, model_a_path=model_a_path)
+mha = MHActorCritic(lr=0.00001)
+# mha = MHActorCritic(model_v_path=model_v_path, model_a_path=model_a_path, lr=0.00001)
 # env = gym.make('CartPole-v1', render_mode='human')
 env = gym.make('CartPole-v1')
 
@@ -91,7 +115,7 @@ n_episode = 0
 episodes = []
 best_mean = -100
 
-while n_episode < 1000:
+while n_episode < 2000:
     t -=- 1
     old_observation = observation
     action = mha.act(observation)  # agent policy that uses the observation and info
